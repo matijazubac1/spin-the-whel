@@ -70,7 +70,7 @@ canvas{
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -100%); /* strelica gore */
+    transform: translate(-50%, -100%);
     width: 0;
     height: 0;
     border-left: 20px solid transparent;
@@ -102,5 +102,144 @@ canvas{
     <button onclick="addOption()">Dodaj polje</button>
     <br>
     <div class="settings">
-        <label>Spin trajanje (ms): </label>
-        <input type="number"
+        <label>Spin trajanje (sek): </label>
+        <input type="number" id="spinTime" value="4" min="1" step="1">
+    </div>
+    <button onclick="spin()">SPIN</button>
+</div>
+
+<div class="wheel-container">
+    <div class="pointer"></div>
+    <canvas id="wheel"></canvas>
+</div>
+
+<div id="result"></div>
+
+<audio id="spinSound">
+<source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg">
+</audio>
+
+<script>
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+let options = [];
+let colors = [];
+let startAngle = 0;
+
+// inicijalno siva boja
+let defaultColor = "#888888";
+
+// Resize canvas
+function resizeCanvas(){
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    drawWheel();
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+// Random boja za polja
+function randomColor(){
+    return "#" + Math.floor(Math.random()*16777215).toString(16);
+}
+
+// Crtanje točka
+function drawWheel(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(options.length === 0) {
+        // crta sivi spin kada nema polja
+        ctx.beginPath();
+        ctx.fillStyle = defaultColor;
+        ctx.arc(canvas.width/2, canvas.height/2, canvas.width/2, 0, 2*Math.PI);
+        ctx.fill();
+        return;
+    }
+
+    let arc = 2 * Math.PI / options.length;
+    let center = canvas.width/2;
+    let radius = canvas.width/2;
+
+    for(let i=0;i<options.length;i++){
+        let angle = startAngle + i * arc;
+
+        ctx.beginPath();
+        ctx.fillStyle = colors[i];
+        ctx.moveTo(center,center);
+        ctx.arc(center,center,radius,angle,angle+arc);
+        ctx.fill();
+
+        // tekst sa tri crtice
+        ctx.save();
+        ctx.fillStyle="white";
+        ctx.translate(center,center);
+        ctx.rotate(angle + arc/2);
+        ctx.textAlign="right";
+        ctx.font = radius/14 + "px Arial";
+        ctx.fillText("--- " + options[i] + " ---",radius-15,5);
+        ctx.restore();
+    }
+}
+
+// Dodavanje polja
+function addOption(){
+    const input = document.getElementById("optionInput");
+    if(input.value.trim() === "") return;
+    options.push(input.value.trim());
+    colors.push(randomColor()); // custom boja kada se doda polje
+    input.value="";
+    drawWheel();
+}
+
+// Spin funkcija
+function spin(){
+    if(options.length < 2){
+        alert("Dodaj bar 2 polja!");
+        return;
+    }
+
+    const spinSound = document.getElementById("spinSound");
+    spinSound.play();
+
+    let spinAngle = Math.random()*3000 + 4000;
+    const durationInput = document.getElementById("spinTime");
+    let duration = parseInt(durationInput.value)*1000 || 4000; // sekunde u ms
+
+    let start=null;
+
+    function animate(timestamp){
+        if(!start) start=timestamp;
+        let progress=timestamp-start;
+        let angle=spinAngle*(progress/duration);
+        startAngle=angle*Math.PI/180;
+
+        drawWheel();
+
+        if(progress<duration){
+            requestAnimationFrame(animate);
+        } else {
+            let degrees = spinAngle % 360;
+            let index = Math.floor((360 - degrees) / (360/options.length));
+            if(index >= options.length) index = 0;
+            document.getElementById("result").innerText =
+                "🎉 Dobio si: " + options[index];
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+// inicijalne boje
+colors = options.map(()=>defaultColor);
+drawWheel();
+
+// promena boje dok korisnik kuca
+document.getElementById("optionInput").addEventListener("input", () => {
+    for(let i=0;i<options.length;i++){
+        colors[i] = randomColor();
+    }
+    drawWheel();
+});
+</script>
+
+</body>
+</html>
